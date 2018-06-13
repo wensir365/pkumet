@@ -10,29 +10,51 @@ def go():
    mp3path  = '../mp3/'
    filelist = os.listdir(mp3path)
 
-   playlist = ['Quit']
-   playlist = playlist + filelist
-   
-   PlayScrn = cli.selector(
-               '>>> MP3_player',
-               playlist,
-               'Which song you want to play?',
-               'Just input a number within %i >>> %i'%(0,len(playlist)-1) )
-
    while True:
-      nowsong  = PlayScrn.show_and_get()
+      nowsong  = cli.RadioList(  title='MP3 files at '+mp3path,
+                                 desc=filelist,
+                                 fkey=['p','c','s','q'],
+                                 fdesc=['Pause','Continue','Stop','Stop and quit'],
+                                 question='Which song you want to play?' )
 
-      if    nowsong==0:
+      # Stop and Quit
+      if    nowsong=='q':
          try:
             NOW.stop()
             del NOW
-            print('Stop playing, and quit...')
+            print('Stop playing, and quit ...')
             print('')
             break
          except:
             print('')
             break
 
+      # Stop
+      elif  nowsong=='s':
+         try:
+            NOW.stop()
+            del NOW
+            print('Stop playing')
+         except:
+            print('Nothing to stop ...')
+
+      # Pause
+      elif  nowsong=='p':
+         try:
+            NOW.pause()
+            print('Pause playing')
+         except:
+            print('Nothing to pause ...')
+
+      # Continue
+      elif  nowsong=='c':
+         try:
+            NOW.play()
+            print('Continue playing')
+         except:
+            print('Nothing to continue ...')
+
+      # Play a song
       else:
          try:
             NOW.stop()

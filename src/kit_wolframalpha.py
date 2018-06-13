@@ -10,19 +10,19 @@ def go():
    AppID    = 'K2U2TH-TR74L9WEH3'   # "MetAssistant" App ID, don't use it illegally!
    MyWolf   = wolf.Client(AppID)
 
-   qa = cli.q_and_a('Please input some key words to check w/ WolframAlpha (q|0 for Quit)?')
-
    run = True
    while run:
-      query = qa.show_and_get()
+      print('')
+      query = cli.InputBox('What you want to check w/ WolframAlpha?','[Q] ','Keywords (q for Quit): ')
       if query in {'0','q','bye','quit','exit'}:
          run = False
          print('')
       else:
          try:
+            print('    '+'OK, searching '+c_p+query+c_n+' ...\n')
             result   = MyWolf.query(query)
             result2  = next(result.results).text
-            print('\n%s'%result2)
+            print(result2)
          except:
             print('\nSorry, didn\'t find any info for %s from WolframAlpha.'
                   %(c_red+query+c_n))

@@ -9,16 +9,16 @@ def go():
 
    my = wea.Weather(unit=wea.Unit.CELSIUS)
 
-   qa = cli.q_and_a('Which city you want to check w/ Yahoo Weather (q|0 for Quit)?')
-
    run = True
    while run:
-      query = qa.show_and_get()
+      print('')
+      query = cli.InputBox('Which city you want to check w/ Yahoo Weather?','[Q] ','Name of city (q for Quit): ')
       if query in {'0','q','bye','quit','exit'}:
          run = False
          print('')
       else:
          try:
+            print('    '+'OK, searching '+c_p+query+c_n+' ...\n')
             loc   = my.lookup_by_location(query)
 
             print('\n=== Current Weather===')

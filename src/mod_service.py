@@ -5,8 +5,8 @@ import kit_todolist
 import kit_ncepviewer
 import kit_wikipedia
 import kit_wolframalpha
-#import kit_weather
-#import kit_mp3player
+import kit_weather
+import kit_mp3player
 
 from mod_color import *
 c_h   = c_blue2
@@ -22,8 +22,8 @@ kitdict = {
    'ncep'   : ['n','ncep','ncep/ncar','ncep-ncar','ncep1','再分析'],
    'wiki'   : ['wi','wiki','wikipedia','维基'],
    'wolf'   : ['wo','wolf','wolfram','wolframalpha','math','mathematica'],
-#   'weather': ['we','wea','weather','天气'],
-#   'mp3'    : ['m','mp3','music','音乐'],
+   'weather': ['we','wea','weather','天气'],
+   'mp3'    : ['m','mp3','music','音乐'],
           }
 
 def do_help():
@@ -37,8 +37,8 @@ def do_help():
    print('   ncep          NCEP/NCAR 1981-2010 Climatology     NCEP1气候态图集')
    print('   wiki          Wikipedia                           伟大的维基百科搜索引擎')
    print('   wolf          WolframAlpha                        数学世界的搜索引擎')
-#   print('   weather       Yahoo! Weather                      雅虎天气频道信息')
-#   print('   mp3           MP3 Player                          听听音乐，轻松片刻 :-)')
+   print('   weather       Yahoo! Weather                      雅虎天气频道信息')
+   print('   mp3           MP3 Player                          听听音乐，轻松片刻 :-)')
    print('')
    
 def do_quit():
@@ -90,12 +90,12 @@ def core_process(s):
       kit_wolframalpha.go()
 
    # toolkit: YahooWeather?
-   #elif s.lower() in kitdict['weather']:
-   #   kit_weather.go()
+   elif s.lower() in kitdict['weather']:
+      kit_weather.go()
 
    # toolkit: MP3?
-   #elif s.lower() in kitdict['mp3']:
-   #   kit_mp3player.go()
+   elif s.lower() in kitdict['mp3']:
+      kit_mp3player.go()
 
    # NO process
    else:

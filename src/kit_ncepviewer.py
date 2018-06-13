@@ -1,69 +1,63 @@
 #!/usr/bin/env python3
 
-import matplotlib
-matplotlib.use('Agg')
-
 import mod_cli                as cli
 import numpy                  as np
 import xarray                 as xr
-import mpl_toolkits.basemap   as bm
-import matplotlib.pyplot      as plt
+import pprint                 as pp
+import mod_pkuplot            as pkuplot
 
 import par_maplatlon          as figll
+import par_mapnp              as fignp
+import par_mapsp              as figsp
+import par_latp               as figlatp
+import par_lonp               as figlonp
+import par_latt               as figlatt
+import par_lont               as figlont
+import par_vart               as figvart
 
 def go():
    print('Starting ... Toolkit/NCEP_viewer')
 
-   CatList = [ 'Quit NCEP_viewer',
-               'Lat-Lon maps',
-               'Northern Hemisphere / Arctic maps        (N/A)',
-               'Southern Hemisphere / Antarctica maps    (N/A)',
-               'Lat-Pressure / Lat-Height plots          (N/A)',
-               'Lon-Pressure / Lon-Height plots          (N/A)',
-               'Variable-Month / Seasonal-cycle plots    (N/A)',
-               'Lat-Month / Seasonal-cycle plots         (N/A)',
-               'Lon-Month / Seasonal-cycle plots         (N/A)'        ]
-   
-   CatScrn = cli.selector(
-               '>>> NCEP_viewer',
-               CatList,
-               'Which type of plot you want to check out?',
-               'Just input a number within %i >>> %i'%(0,len(CatList)-1) )
+   CatList = [ 'Map: Lat-Lon',
+               'Map: Arctic / NH',
+               'Map: Antarctica / SH',
+               'Cross-section: Lat-Pressure / Lat-Height',
+               'Cross-section: Lon-Pressure / Lon-Height',
+               'Seasonal cycle: Lat-Month',
+               'Seasonal cycle: Lon-Month (i.e. Hovmueller diagram)',
+               'Seasonal cycle: Variable-Month', ]
 
    while True:
-      PlotCat  = CatScrn.show_and_get()
+      PlotCat  = cli.RadioList(  title='>>> NCEP_viewer', desc=CatList,
+                                 question='Which type of plot you want to check out?' )
 
       # === Category
-      if    PlotCat==0:                            # Quit NCEP_viewer
+      if    PlotCat=='q':                          # Quit NCEP_viewer
          print('')
-         break
-      elif  PlotCat==1:    Figures  = figll.FIG    # Lat-Lon
-      elif  PlotCat==2:    break                   # NH
-      elif  PlotCat==3:    break                   # SH
-      elif  PlotCat==4:    break                   # Lat-Pres
-      elif  PlotCat==5:    break                   # Lon-Pres
-      elif  PlotCat==6:    break                   # Var-Month
-      elif  PlotCat==7:    break                   # Lat-Month
-      elif  PlotCat==8:    break                   # Lon-Month
+         return
+      elif  PlotCat==0:    Figures  = figll.FIG    # Lat-Lon
+      elif  PlotCat==1:    Figures  = fignp.FIG    # NH
+      elif  PlotCat==2:    Figures  = figsp.FIG    # SH
+      elif  PlotCat==3:    Figures  = figlatp.FIG  # Lat-Pres
+      elif  PlotCat==4:    Figures  = figlonp.FIG  # Lon-Pres
+      elif  PlotCat==5:    Figures  = figlatt.FIG  # Lat-Month
+      elif  PlotCat==6:    Figures  = figlont.FIG  # Lon-Month
+      elif  PlotCat==7:    Figures  = figvart.FIG  # Var-Month
       else:
          print('go: unknown category %i'%PlotCat)
 
-      # === Into current CAT: Setup plots
-      DescList    = ['Quit to upper level'] + list( i['Description'] for i in Figures )
-      WhichPlot   = cli.selector(
-                     '>>> NCEP_viewer >>> '+CatList[PlotCat],
-                     DescList,
-                     'Which plot you want to take a look at?',
-                     'Just input a number within %i >>> %i'%(0,len(DescList)-1)  )
+      # === Into current CAT: Setup
+      DescList    = [ i['Description'] for i in Figures ]
 
       # === Into current CAT: Choose and Plotting
       while True:
-         want2c = WhichPlot.show_and_get()
-         if want2c==0:  break
+         want2c = cli.RadioList( title='>>> NCEP_viewer >>> '+CatList[PlotCat],
+                                 desc=DescList,
+                                 question='Which plot you want to take a look at?' )
+         if want2c=='q':  break
          else:
-            plot = ncep1viewer(PlotCat, Figures[want2c-1])
+            plot = ncep1viewer(PlotCat, Figures[want2c])
             plot.makeplot()
-   return
 
 
 #################
@@ -76,7 +70,7 @@ class ncep1viewer():
 
       print('\n <ncep1viewer> ---> a FIG dictionary loaded:')
       print('')
-      print(self.F)
+      pp.pprint(self.F)
       print('')
 
    def makeplot(self):
@@ -87,227 +81,162 @@ class ncep1viewer():
          f.append(xr.open_dataset(self.datapath+self.F['FileIn'][i],decode_times=False))
       z        = eval(self.F['Compute'])
 
-      # ===== Figure Category
-      #  Lat-Lon
-      if    self.Cat    == 1: 
-         if    self.F['TYPE']=='pres-lat-lon':
+      # ===== Figure Type
+      #  Pres-Lat-Lon / Lat-Lon
+      if    self.F['TYPE'] in ('pres-lat-lon','lat-lon'):
+         if self.F['TYPE']=='pres-lat-lon':
             z = z.sel(level=self.F['PresLev'])
-            z = z.isel(time=self.F['Month']-1)
-            plot2d_latlon(z, z.lon, z.lat, clev=eval(self.F['Levels']),
-               country=self.F['CountryLine'],
-               domain=self.F['Domain'], cm=self.F['ColorMap'],
-               cbarstr='Unit: %s\nM=%0.2f, m=%0.2f'%(self.F['Unit'],np.max(z),np.min(z)),
-               ti=self.F['FigTitle'], fout=self.plotpath+str(self.Cat)+'.'+self.F['FileOut'])
+         z = pkuplot.timeavg(z,self.F['Month'])
+         pkuplot.plot2d_latlon(
+            z, z.lon, z.lat, clev=eval(self.F['Levels']),
+            country=self.F['CountryLine'],
+            domain=self.F['Domain'], cm=self.F['ColorMap'],
+            cbarstr='Unit: %s\nM=%0.2f, m=%0.2f'%(self.F['Unit'],np.max(z),np.min(z)),
+            ti=self.F['FigTitle'], 
+            fout=self.plotpath+'Cat'+str(self.Cat)+'.'+self.F['FileOut'] )
 
-         elif  self.F['TYPE']=='lat-lon':
-            z = z.isel(time=self.F['Month']-1)
-            plot2d_latlon(z, z.lon, z.lat, clev=eval(self.F['Levels']),
-               country=self.F['CountryLine'],
-               domain=self.F['Domain'], cm=self.F['ColorMap'],
-               cbarstr='Unit: %s\nM=%0.2f, m=%0.2f'%(self.F['Unit'],np.max(z),np.min(z)),
-               ti=self.F['FigTitle'], fout=self.plotpath+str(self.Cat)+'.'+self.F['FileOut'])
+      #  Pres-Lat-Lon-Vec or Lat-Lon-Vec
+      elif  self.F['TYPE'] in ('pres-lat-lon-vec','lat-lon-vec'):
+         u,v   = z
 
-         elif  self.F['TYPE']=='pres-lat-lon-vec':
-            u,v   = z
-            u     = u.sel(level=self.F['PresLev'])
-            u     = u.isel(time=self.F['Month']-1)
-            v     = v.sel(level=self.F['PresLev'])
-            v     = v.isel(time=self.F['Month']-1)
-            spd   = np.sqrt(u*u+v*v)
-            plotvector_latlon(u,v,u.lon,u.lat,
-               domain=self.F['Domain'], density=self.F['Density'], veclen=self.F['VecLen'],
-               country=self.F['CountryLine'],
-               cbarstr='%s\nM=%0.2f, m=%0.2f'%(self.F['Unit'],np.max(spd),np.min(spd)),
-               ti=self.F['FigTitle'], fout=self.plotpath+str(self.Cat)+'.'+self.F['FileOut'])
+         if self.F['TYPE']=='pres-lat-lon-vec':
+            u  = u.sel(level=self.F['PresLev'])
+         u  = pkuplot.timeavg(u,self.F['Month'])
 
-      #  NH
-      elif  self.Cat    == 2: pass
+         if self.F['TYPE']=='pres-lat-lon-vec':
+            v  = v.sel(level=self.F['PresLev'])
+         v  = pkuplot.timeavg(v,self.F['Month'])
 
-      #  SH
-      elif  self.Cat    == 3: pass
+         spd   = np.sqrt(u*u+v*v)
 
-      #  Lat-Pres
-      elif  self.Cat    == 4: pass
+         pkuplot.plotvector_latlon(
+            u,v,u.lon,u.lat,
+            domain=self.F['Domain'], density=self.F['Density'], veclen=self.F['VecLen'],
+            country=self.F['CountryLine'],
+            cbarstr='%s\nM=%0.2f, m=%0.2f'%(self.F['Unit'],np.max(spd),np.min(spd)),
+            ti=self.F['FigTitle'], 
+            fout=self.plotpath+'Cat'+str(self.Cat)+'.'+self.F['FileOut'] )
 
-      #  Lon-Pres
-      elif  self.Cat    == 5: pass
+      #  Pres-NP or Pres-SP or NP or SP
+      elif  self.F['TYPE'] in ('pres-np','pres-sp','np','sp'):
+         if self.F['TYPE'] in ('pres-np','pres-sp'):
+            z = z.sel(level=self.F['PresLev'])
+         z = z.sel(lat=slice(self.F['Domain'][1],self.F['Domain'][0]))
+         z = pkuplot.timeavg(z,self.F['Month'])
 
-      #  Var-Month
-      elif  self.Cat    == 6: pass
+         pkuplot.plot2d_polar(
+            z, z.lon, z.lat, clev=eval(self.F['Levels']),
+            country=self.F['CountryLine'],
+            domain=self.F['Domain'], cm=self.F['ColorMap'],
+            cbarstr='Unit: %s\nM=%0.2f, m=%0.2f'%(self.F['Unit'],np.max(z),np.min(z)),
+            ti=self.F['FigTitle'], 
+            fout=self.plotpath+'Cat'+str(self.Cat)+'.'+self.F['FileOut'] )
 
-      #  Lat-Month
-      elif  self.Cat    == 7: pass
+      #  Pres-NP-Vec or Pres-SP-Vec basemap在极区画矢量有严重问题！我也没办法
+      elif  self.F['TYPE'] in ('pres-np-vec','pres-sp-vec'):
+         u,v   = z
 
-      #  Lon-Month
-      elif  self.Cat    == 8: pass
+         u  = u.sel(level=self.F['PresLev'])
+         u  = u.sel(lat=slice(self.F['Domain'][1],self.F['Domain'][0]))
+         u  = pkuplot.timeavg(u,self.F['Month'])
 
+         v  = v.sel(level=self.F['PresLev'])
+         v  = v.sel(lat=slice(self.F['Domain'][1],self.F['Domain'][0]))
+         v  = pkuplot.timeavg(v,self.F['Month'])
+
+         spd   = np.sqrt(u*u+v*v)
+
+         pkuplot.plotvector_polar(
+            u,v,u.lon,u.lat,
+            domain=self.F['Domain'], density=self.F['Density'], veclen=self.F['VecLen'],
+            country=self.F['CountryLine'],
+            cbarstr='%s\nM=%0.2f, m=%0.2f'%(self.F['Unit'],np.max(spd),np.min(spd)),
+            ti=self.F['FigTitle'], 
+            fout=self.plotpath+'Cat'+str(self.Cat)+'.'+self.F['FileOut'] )
+
+      #  Lat-Pres (Zonal Mean)
+      elif  self.F['TYPE']=='lat-pres':
+         z = pkuplot.zonalavg(z,self.F['LonRange'])
+         z = pkuplot.timeavg(z,self.F['Month'])
+         z = z.sel(level=slice(self.F['LevRange'][0],self.F['LevRange'][1]))
+
+         pkuplot.plot2d_contour(
+            z.lat, z.level, z, ti=self.F['FigTitle'],
+            add_contour=self.F['AddContour'], num_contours=self.F['NumContours'],
+            xl='Latitude (Degrees North)',yl='Pressure (hPa)',yreverse=True,
+            xticks=np.arange(-90,91,30),
+            clev=eval(self.F['Levels']), cm=self.F['ColorMap'],
+            cbarstr='Unit: %s\nM=%0.2f, m=%0.2f'%(self.F['Unit'],np.max(z),np.min(z)),
+            fout=self.plotpath+'Cat'+str(self.Cat)+'.'+self.F['FileOut'] )
+
+      #  Lon-Pres (Meridional Mean)
+      elif  self.F['TYPE']=='lon-pres':
+         z = pkuplot.meriavg(z,self.F['LatRange'])
+         z = pkuplot.timeavg(z,self.F['Month'])
+         z = z.sel(level=slice(self.F['LevRange'][0],self.F['LevRange'][1]))
+
+         pkuplot.plot2d_contour(
+            z.lon, z.level, z, ti=self.F['FigTitle'],
+            add_contour=self.F['AddContour'], num_contours=self.F['NumContours'],
+            xl='Longitude (Degrees East)',yl='Pressure (hPa)',yreverse=True,
+            xticks=np.arange(0,361,30),
+            clev=eval(self.F['Levels']), cm=self.F['ColorMap'],
+            cbarstr='Unit: %s\nM=%0.2f, m=%0.2f'%(self.F['Unit'],np.max(z),np.min(z)),
+            fout=self.plotpath+'Cat'+str(self.Cat)+'.'+self.F['FileOut'] )
+
+      #  Lat-Time
+      elif  self.F['TYPE']=='lat-time':
+         z = pkuplot.zonalavg(z,self.F['LonRange'])
+         if self.F['PresLev']>0:
+            z = z.sel(level=self.F['PresLev'])
+         z = z.transpose()
+         xaxis = np.arange(1,13,1)
+
+         pkuplot.plot2d_contour(
+            xaxis, z.lat, z, ti=self.F['FigTitle'],
+            add_contour=self.F['AddContour'], num_contours=self.F['NumContours'],
+            xl='Time (Month)',yl='Latitude (Deg_North)',
+            xticks=np.arange(1,13,1), yticks=np.arange(-90,91,30),
+            clev=eval(self.F['Levels']), cm=self.F['ColorMap'],
+            cbarstr='Unit: %s\nM=%0.2f, m=%0.2f'%(self.F['Unit'],np.max(z),np.min(z)),
+            fout=self.plotpath+'Cat'+str(self.Cat)+'.'+self.F['FileOut'] )
+
+      #  Lon-Time (Hovmueller)
+      elif  self.F['TYPE']=='lon-time':
+         z = pkuplot.meriavg(z,self.F['LatRange'])
+         if self.F['PresLev']>0:
+            z = z.sel(level=self.F['PresLev'])
+         yaxis = np.arange(1,13,1)
+
+         pkuplot.plot2d_contour(
+            z.lon, yaxis, z, ti=self.F['FigTitle'],
+            add_contour=self.F['AddContour'], num_contours=self.F['NumContours'],
+            xl='Longitude (Deg_East)',yl='Time (month)',
+            xticks=np.arange(0,361,30), yticks=yaxis,
+            clev=eval(self.F['Levels']), cm=self.F['ColorMap'],
+            cbarstr='Unit: %s\nM=%0.2f, m=%0.2f'%(self.F['Unit'],np.max(z),np.min(z)),
+            fout=self.plotpath+'Cat'+str(self.Cat)+'.'+self.F['FileOut'] )
+
+      #  Var-Time
+      elif  self.F['TYPE']=='var-time':
+         lats, lons = self.F['LatRange'], self.F['LonRange']
+         if len(lats)==1 and len(lons)==1:
+            z = z.sel(lat=lats[0],lon=lons[0],method='nearest')
+         else:
+            z = pkuplot.meriavg(z,lats)
+            z = pkuplot.zonalavg(z,lons)
+         if self.F['PresLev']>0:
+            z = z.sel(level=self.F['PresLev'])
+         xaxis = np.arange(1,13,1)
+
+         pkuplot.plot1d_timeseries1(
+            xaxis, z, ti=self.F['FigTitle'],
+            xl='Time (Month)', xticks=xaxis,
+            yl=self.F['VarStr']+' ('+self.F['Unit']+')',
+            fout=self.plotpath+'Cat'+str(self.Cat)+'.'+self.F['FileOut'] )
+
+      #  Others
       else:
-         print('makeplot: 不能识别的Category')
-
-      return
-
-
-#################
-def plotvector_latlon(U2d,V2d,lon1d,lat1d,density=2,veclen=10,minshaft=2,
-                      addcy=False,domain=[-90,90,0,360],res='c',lat23=False,country=False,
-                      cbarstr='',ti='',fout='figure.pdf'):
-
-   # Defined and open papersize
-   papersize_letter  = (11,8.5)
-   papersize_a4      = (11.7,8.27)     # default
-   plt.figure(figsize=papersize_a4)
-
-   # Base map
-   m = bm.Basemap( projection='cyl',resolution=res,
-                   llcrnrlat=domain[0],urcrnrlat=domain[1],
-                   llcrnrlon=domain[2],urcrnrlon=domain[3])
-
-   # Draw latitude lines
-   m.drawparallels(np.arange(-90,91,30),
-                   color='gray',dashes=[1,99999],linewidth=0.1,labels=[1,0,0,0])
-   m.drawparallels([0],color='black',dashes=[99999,1],linewidth=0.2)
-   if lat23: m.drawparallels([23.5,90-23.5,-23.5,-90+23.5],
-                             color='black',dashes=[1,1],linewidth=0.1)
-
-   # Draw longitude lines
-   m.drawmeridians(np.arange(0,361,30),
-                   color='gray',dashes=[1,99999],linewidth=0.1,labels=[0,0,0,1])
-   m.drawmeridians([180,],color='black',dashes=[99999,1],linewidth=0.2)
-
-   # Draw coast and country lines
-   m.drawcoastlines()
-   if country: m.drawcountries()
-
-   # Prepare lon2d & lat2d
-   if addcy: data2d,lon1d = bm.addcyclic(data2d,lon1d)
-   lon2d,lat2d = np.meshgrid(lon1d,lat1d)
-
-   # Plotting
-   itv = density
-   fig = m.quiver(lon2d[::itv,::itv],lat2d[::itv,::itv],U2d[::itv,::itv],V2d[::itv,::itv],
-                  latlon=True, minshaft=minshaft)
-   lgd = plt.quiverkey(fig,0.92,-0.1, veclen,'%i %s'%(veclen,cbarstr), labelpos='S')
-
-   # Title
-   plt.title(ti+'\n',fontsize=18)
-
-   # Marking Max/Min points
-   data2d = np.sqrt(U2d*U2d+V2d*V2d)
-   maxj,maxi = np.unravel_index(np.argmax(data2d), data2d.shape)
-   minj,mini = np.unravel_index(np.argmin(data2d), data2d.shape)
-
-   lonmax,latmax  = lon1d[maxi],lat1d[maxj]
-   lonmin,latmin  = lon1d[mini],lat1d[minj]
-
-   m.scatter(lonmax,latmax,s=600,marker='o',color='k',edgecolors='w')
-   m.scatter(lonmin,latmin,s=600,marker='o',color='k',edgecolors='w')
-
-   # Add text
-   plt.text(lonmax,latmax,'M',fontsize=12,ha='center',va='center',color='w')
-   plt.text(lonmin,latmin,'m',fontsize=12,ha='center',va='center',color='w')
-
-   # Save & close
-   plt.savefig(fout)
-   #plt.show()
-   plt.close()
-
-   # Ending message
-   print('\n <plotvector_latlon> ---> the figure was saved into: %s \n'%fout)
-   return
-
-
-#################
-def plot2d_latlon(data2d,lon1d,lat1d,clev=[],addcy=True,
-                  domain=[-90,90,0,360],res='c',lat23=False,country=False,
-                  cm='jet',cbarstr='',ti='',fout='figure.pdf'
-                  ):
-   '''
-   =========================================================================================================
-   PLOT 2D DATA ON A LAT-LON MAP
-
-   Apr 2018
-   Xinyu Wen, xwen@pku.edu.cn, Peking Univ
-   ---------------------------------------------------------------------------------------------------------
-   Argument    Default        Description                      Example
-   ---------------------------------------------------------------------------------------------------------
-   data2d      REQUIRED       Data you want to plot            like Z500(lat,lon)
-   lon1d,lat1d REQUIRED       Longitude and latitude
-   clev        []             Color levels                     like np.arange(-40,41,5) or list(range(...))
-   addcy       True           Want to add a cyclic lon?
-   domain      [-90,90,0,360] Domain to plot                   like [Lat_s,Lat_n,Lon_w,Lon_e]
-   res         'c'            Map resolution
-   lat23       False          Want to draw 南北回归线和极圈线
-   country     False          Want to draw country lines
-   cm          'jet'          Colormap you want to use
-   cbarstr     ''             String besides the colorbar      like 'Celsius'
-   ti          ''             Title of the plot
-   fout        'figure.pdf'   Filename for figure saving
-   =========================================================================================================
-   '''
-
-   # Defined and open papersize
-   papersize_letter  = (11,8.5)
-   papersize_a4      = (11.7,8.27)     # default
-   plt.figure(figsize=papersize_a4)
-
-   # Base map
-   m = bm.Basemap( projection='cyl',resolution=res,
-                     llcrnrlat=domain[0],urcrnrlat=domain[1],
-                     llcrnrlon=domain[2],urcrnrlon=domain[3])
-
-   # Draw latitude lines
-   m.drawparallels(np.arange(-90,91,30),
-                   color='gray',dashes=[1,9999],linewidth=0.1,labels=[1,0,0,0])
-   m.drawparallels([0],color='black',dashes=[9999,1],linewidth=0.2)
-   if lat23: m.drawparallels([23.5,90-23.5,-23.5,-90+23.5],
-                             color='black',dashes=[1,1],linewidth=0.1)
-
-   # Draw longitude lines
-   m.drawmeridians(np.arange(0,361,30),
-                   color='gray',dashes=[1,9999],linewidth=0.1,labels=[0,0,0,1])
-   m.drawmeridians([180,],color='black',dashes=[9999,1],linewidth=0.2)
-
-   # Draw coast and country lines
-   m.drawcoastlines()
-   if country: m.drawcountries()
-
-   # Prepare lon2d & lat2d
-   if addcy: data2d,lon1d = bm.addcyclic(data2d,lon1d)
-   lon2d,lat2d = np.meshgrid(lon1d,lat1d)
-
-   # Plotting
-   if len(clev)>0:
-      fig = m.contourf(lon2d,lat2d,data2d,clev,latlon=True,cmap=cm)
-   else:
-      fig = m.contourf(lon2d,lat2d,data2d,     latlon=True,cmap=cm)
-
-   # Colorbar
-   cbar = m.colorbar(fig,size='2%')
-   cbar.set_label(cbarstr)
-
-   # Title
-   plt.title(ti+'\n',fontsize=18)
-
-   # Marking Max/Min points
-   maxj,maxi = np.unravel_index(np.argmax(data2d), data2d.shape)
-   minj,mini = np.unravel_index(np.argmin(data2d), data2d.shape)
-
-   lonmax,latmax  = lon1d[maxi],lat1d[maxj]
-   lonmin,latmin  = lon1d[mini],lat1d[minj]
-
-   m.scatter(lonmax,latmax,s=600,marker='o',color='k',edgecolors='w')
-   m.scatter(lonmin,latmin,s=600,marker='o',color='k',edgecolors='w')
-
-   # Add text
-   plt.text(lonmax,latmax,'M',fontsize=12,ha='center',va='center',color='w')
-   plt.text(lonmin,latmin,'m',fontsize=12,ha='center',va='center',color='w')
-
-   # Save & close
-   plt.savefig(fout)
-   #plt.show()
-   plt.close()
-
-   # Ending message
-   print('\n <plot2d_latlon> ---> the figure was saved into: %s \n'%fout)
-   return
+         print('ncep1viewer/makeplot: an unknown FIGURE TYPE=',self.F['TYPE'])
+         print('ncep1viewer/makeplot: 不能识别的 FIGURE TYPE=',self.F['TYPE'])
 
