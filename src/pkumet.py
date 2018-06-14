@@ -15,8 +15,8 @@ External Modules:
 - colorama              for colorful ascii text
 - wikipedia             for wikipedia API
 - wolframalpha          for wolframalpha API
-- weather               for yahoo weather API
-- vlc                   for playing mp3 files
+- weather-api           for yahoo weather API
+- python-vlc            for playing mp3 files
 '''
 
 import mod_service
