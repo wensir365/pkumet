@@ -2,7 +2,7 @@
 
 import os
 import wikipedia        as wiki
-import mod_cli          as cli
+import mod_pkucli       as cli
 from mod_color          import *
 
 def go():

@@ -2,7 +2,7 @@
 
 import os
 import vlc
-import mod_cli                as cli
+import mod_pkucli    as cli
 
 def go():
    print('Starting ... Toolkit/MP3_Player')

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import wolframalpha  as wolf
-import mod_cli       as cli
+import mod_pkucli    as cli
 from mod_color       import *
 
 def go():

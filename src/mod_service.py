@@ -2,7 +2,12 @@
 
 import os
 import kit_todolist
-import kit_ncepviewer
+import kit_viewer_ncep1
+import kit_viewer_cmap
+import kit_viewer_gpcp
+import kit_viewer_gpcc
+import kit_viewer_ersst
+import kit_viewer_noaaolr
 import kit_wikipedia
 import kit_wolframalpha
 import kit_weather
@@ -20,6 +25,11 @@ cmddict = {
 kitdict = {
    'todo'   : ['t','to','todo','to-do'],
    'ncep'   : ['n','ncep','ncep/ncar','ncep-ncar','ncep1','再分析'],
+   'cmap'   : ['cmap'],
+   'gpcp'   : ['gpcp'],
+   'gpcc'   : ['gpcc'],
+   'ersst'  : ['er','ersst'],
+   'olr'    : ['olr'],
    'wiki'   : ['wi','wiki','wikipedia','维基'],
    'wolf'   : ['wo','wolf','wolfram','wolframalpha','math','mathematica'],
    'weather': ['we','wea','weather','天气'],
@@ -35,6 +45,11 @@ def do_help():
    print(c_h+'Toolkit:'+c_n)
    print('   todo          To-Do List                          要做的事')
    print('   ncep          NCEP/NCAR 1981-2010 Climatology     NCEP1气候态图集')
+   print('   cmap          CMAP 1981-2010 Climatology          CMAP降水场气候态图集')
+   print('   gpcp          GPCP 1981-2010 Climatology          GPCP降水场气候态图集')
+   print('   gpcc          GPCC 1981-2010 Climatology          GPCC降水场气候态图集')
+   print('   ersst         ERSST 1981-2010 Climatology         ERSST海温气候态图集')
+   print('   olr           NOAA/OLR 1981-2010 Climatology      NOAA/OLR出射长波气候态图集')
    print('   wiki          Wikipedia                           伟大的维基百科搜索引擎')
    print('   wolf          WolframAlpha                        数学世界的搜索引擎')
    print('   weather       Yahoo! Weather                      雅虎天气频道信息')
@@ -77,9 +92,29 @@ def core_process(s):
    elif s.lower() in kitdict['todo']:
       kit_todolist.go()
 
-   # toolkit: NCEP viewer?
+   # toolkit: NCEP1 viewer?
    elif s.lower() in kitdict['ncep']:
-      kit_ncepviewer.go()
+      kit_viewer_ncep1.go()
+
+   # toolkit: CMAP viewer?
+   elif s.lower() in kitdict['cmap']:
+      kit_viewer_cmap.go()
+
+   # toolkit: GPCP viewer?
+   elif s.lower() in kitdict['gpcp']:
+      kit_viewer_gpcp.go()
+
+   # toolkit: GPCC viewer?
+   elif s.lower() in kitdict['gpcc']:
+      kit_viewer_gpcc.go()
+
+   # toolkit: ERSST viewer?
+   elif s.lower() in kitdict['ersst']:
+      kit_viewer_ersst.go()
+
+   # toolkit: ERSST viewer?
+   elif s.lower() in kitdict['olr']:
+      kit_viewer_noaaolr.go()
 
    # toolkit: Wikipedia?
    elif s.lower() in kitdict['wiki']:

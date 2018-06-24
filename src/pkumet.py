@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 '''
 PKU MetAssistant (北大气象助手)
 Xinyu Wen
@@ -15,8 +16,8 @@ External Modules:
 - colorama              for colorful ascii text
 - wikipedia             for wikipedia API
 - wolframalpha          for wolframalpha API
-- weather-api           for yahoo weather API
-- python-vlc            for playing mp3 files
+- weather               for yahoo weather API
+- vlc                   for playing mp3 files
 '''
 
 import mod_service

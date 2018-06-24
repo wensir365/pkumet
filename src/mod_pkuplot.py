@@ -62,7 +62,14 @@ def zonalavg(x,lons):
 def meriavg(x,lats):
    print(' <meridionalavg> ---> performing meridional average ', lats[0],'->',lats[1])
    print('')
-   y  = np.mean(x.sel(lat=slice(lats[1],lats[0])),axis=-2)
+
+   lat = x.lat
+   if    (lat[1]-lat[0])>0:
+      y  = np.mean(x.sel(lat=slice(lats[0],lats[1])),axis=-2)
+   elif  (lat[1]-lat[0])<0:
+      y  = np.mean(x.sel(lat=slice(lats[1],lats[0])),axis=-2)
+   else:
+      print('<meriavg>: Unknown latitudes')
    return y
 
 
@@ -74,7 +81,8 @@ def meriavg(x,lats):
 #################
 def plot2d_latlon(data2d,lon1d,lat1d,clev=[],addcy=True,
                   domain=[-90,90,0,360],res='c',lat23=False,country=False,
-                  cm='jet',cbarstr='',ti='',fout='figure.pdf'
+                  cm='jet',cbarstr='',ti='',fout='figure.pdf',
+                  maxminmarker=False,
                   ):
    '''
    =================================================================================================
@@ -144,18 +152,20 @@ def plot2d_latlon(data2d,lon1d,lat1d,clev=[],addcy=True,
    plt.title(ti+'\n',fontsize=18)
 
    # Marking Max/Min points
-   maxj,maxi = np.unravel_index(np.argmax(data2d), data2d.shape)
-   minj,mini = np.unravel_index(np.argmin(data2d), data2d.shape)
+   if maxminmarker:
+      maxj,maxi = np.unravel_index(np.argmax(data2d), data2d.shape)
+      minj,mini = np.unravel_index(np.argmin(data2d), data2d.shape)
 
-   lonmax,latmax  = lon1d[maxi],lat1d[maxj]
-   lonmin,latmin  = lon1d[mini],lat1d[minj]
+      lonmax,latmax  = lon1d[maxi],lat1d[maxj]
+      lonmin,latmin  = lon1d[mini],lat1d[minj]
 
-   m.scatter(lonmax,latmax,s=600,marker='o',color='k',edgecolors='w')
-   m.scatter(lonmin,latmin,s=600,marker='o',color='k',edgecolors='w')
-
-   # Add text
-   plt.text(lonmax,latmax,'M',fontsize=12,ha='center',va='center',color='w')
-   plt.text(lonmin,latmin,'m',fontsize=12,ha='center',va='center',color='w')
+      if not((maxi,maxj,mini,minj)==(0,0,0,0)):
+         # Marker
+         m.scatter(lonmax,latmax,s=600,marker='o',color='k',edgecolors='w')
+         m.scatter(lonmin,latmin,s=600,marker='o',color='k',edgecolors='w')
+         # Add text
+         plt.text(lonmax,latmax,'M',fontsize=12,ha='center',va='center',color='w')
+         plt.text(lonmin,latmin,'m',fontsize=12,ha='center',va='center',color='w')
 
    # Save & close
    plt.savefig(fout)
@@ -473,11 +483,20 @@ def plot1d_timeseries1( x,y,style='b-o',lw=2,
    plt.title(ti)
    plt.xlabel(xl)
    plt.ylabel(yl)
- 
+
+   # Range of X and Y
+   showsigma   = 2.0    # 2 Sigma
+   showmargin  = 0.1    # 10% of y_range
+
    y_mean   = np.mean(y)
    y_sigma  = np.std(y)
+   y_max    = np.max(y)
+   y_min    = np.min(y)
+   y_range  = y_max-y_min
+
    xlim     = (np.min(x)-0.5,np.max(x)+0.5)
-   ylim     = (y_mean-3*y_sigma,y_mean+3*y_sigma)
+   #ylim     = (y_mean-showsigma*y_sigma,y_mean+showsigma*y_sigma)
+   ylim     = (y_min-showmargin*y_range, y_max+showmargin*y_range)
    if xlim: plt.xlim(xlim[0],xlim[1])
    if ylim: plt.ylim(ylim[0],ylim[1])
    if ylog: plt.yscale('log')
@@ -489,4 +508,7 @@ def plot1d_timeseries1( x,y,style='b-o',lw=2,
    plt.savefig(fout)
    plt.show()
    plt.close()
+
+   # Ending message
+   print('\n <plot1d_timeseries1> ---> the figure was saved into: %s \n'%fout)
    return

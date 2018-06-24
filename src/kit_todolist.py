@@ -3,8 +3,8 @@
 import calendar
 import pickle
 import pandas     as pd
-import mod_cli    as cli
-from   mod_color  import c_red,c_p,c_n
+import mod_pkucli as cli
+from   mod_color    import c_red,c_p,c_n
 
 def go():
    print('Starting ... Toolkit/To-Do-List')
@@ -12,7 +12,7 @@ def go():
    TodoList_file  = '../cfg/todolist.pkl'
    try:
       TodoList = pickle.load(open(TodoList_file,'rb'))
-      print(TodoList)
+      #print(TodoList)
       print('Loading ... old to-do-list data')
    except:
       TodoList = reset_todolist()
@@ -148,7 +148,8 @@ def reset_todolist():
                   'mailto'    : '' }, ignore_index=True)
    return TodoList
 
-def GetDateTime(x):
+
+def GetDateTime(x):  # x - pd.to_datetime的时间章类型
    try:
       return x.strftime('[%h%d/%Hh]')
    except:
