@@ -1,0 +1,12 @@
+conda install xarray
+conda install basemap
+conda install netcdf4
+
+False addcyc 			in mod_pkuplot.py
+True maxminmarker		in mod_pkuplot.py
+
+vlc - not working, offline
+weahter - not working correctly, offline
+
+Xinyu
+Feb, 2019
