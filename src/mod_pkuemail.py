@@ -10,11 +10,11 @@ from email.mime.text       import MIMEText
 from email.mime.base       import MIMEBase
 from email import encoders
 
-me       = 'wensir365@163.com'
-
 ##################
 class EmailSender:
    '''
+	----------------------------------------------------------------------------------------------------
+
    ===============
    A) OOP 使用方法
    ===============
@@ -23,7 +23,7 @@ class EmailSender:
 
    1. 初始化
    m = EmailSender()
-   m = EmailSender('mail.163.com',25,'wensir365','wxy2000')
+   m = EmailSender('mail.163.com',25,'wensir365','wxy2k')
 
    2. 如果需要，加载配置文件里的SMTP设置
    m.LoadConfig('../cfg/pkumet.cfg')
@@ -41,6 +41,8 @@ class EmailSender:
    =================
    ./mod_pkuemail.py 回车
    之后按照提示输入内容即可
+
+	----------------------------------------------------------------------------------------------------
    '''
 
    cfgfile  = '../cfg/pkumet.cfg'
@@ -48,17 +50,21 @@ class EmailSender:
       'server'    : 'mail.pku.edu.cn',
       'port'      : 25,
       'account'   : 'xwen@pku.edu.cn',
-      'password'  : 'wenxinyu2017'
+      'password'  : 'wenxinyu2018'
+              }
+   todict   = {  'me'  : 'wensir365@163.com',
               }
 
    def __init__(self,   server   = default['server'],
                         port     = default['port'],
                         account  = default['account'],
-                        password = default['password']   ):
+                        password = default['password'],
+                        todict   = todict):
       self.SMTPserver   = server
       self.SMTPport     = port
       self.SMTPid       = account
       self.SMTPpw       = password
+      self.TOdict       = todict
 
    def LoadConfig(self,fn=cfgfile):
       current  = {}
@@ -71,6 +77,12 @@ class EmailSender:
       self.SMTPport     = My['SMTP_port']
       self.SMTPid       = My['SMTP_account']
       self.SMTPpw       = My['SMTP_password']
+      self.TOdict       = My['TO_dict']
+
+   def tofilter(self):
+      for i in range(len(self.To)):
+         if self.To[i] in self.TOdict.keys():
+            self.To[i] = self.TOdict[self.To[i]]
 
    def SetupEmail(self,To,Subject,Body,flist=[],BCC=[]):
       self.From      = self.SMTPid
@@ -80,14 +92,14 @@ class EmailSender:
       self.Body      = Body
       self.AttachList= flist
 
-      # Me
-      if self.To=='me': self.To=me
-
       # Make sure they are list type
       if type(To)    is str: self.To         = [To]
       if type(BCC)   is str: self.BCC        = [BCC]
       if type(flist) is str: self.AttachList = [flist]
 
+      # TO filter
+      self.tofilter()
+         
       # Plain text
       self.msg             = MIMEMultipart()
       self.msg['From']     = self.SMTPid
@@ -115,14 +127,20 @@ class EmailSender:
 
       # TO
       for to in self.To:
-         self.server.sendmail(self.From, to, self.FinalText)
-         print("Successfully send email to --->", to)
+         try:
+            self.server.sendmail(self.From, to, self.FinalText)
+            print("Successfully send email to --->", to)
+         except:
+            print("Failed to send email to --->", to)
 
       # BCC
       if len(self.BCC)>0:
          for to in self.BCC:
-            self.server.sendmail(self.From, to, self.FinalText)
-            print("Successfully BCC email to --->", to)
+            try:
+               self.server.sendmail(self.From, to, self.FinalText)
+               print("Successfully BCC email to --->", to)
+            except:
+               print("Failed to BCC email to --->", to)
 
       self.server.quit()
 

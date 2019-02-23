@@ -79,10 +79,10 @@ def meriavg(x,lats):
 #==========================#
 
 #################
-def plot2d_latlon(data2d,lon1d,lat1d,clev=[],addcy=True,
+def plot2d_latlon(data2d,lon1d,lat1d,clev=[],addcy=False,						# addcy会导致xr错误！
                   domain=[-90,90,0,360],res='c',lat23=False,country=False,
                   cm='jet',cbarstr='',ti='',fout='figure.pdf',
-                  maxminmarker=False,
+                  maxminmarker=True,
                   ):
    '''
    =================================================================================================

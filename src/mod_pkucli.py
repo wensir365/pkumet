@@ -1,5 +1,24 @@
 #!/usr/bin/env python3
 
+'''
+- RadioList
+- FloatBox
+- FloatRangeBox
+- IntBox
+- IntRangeBox
+- YesNo
+- YesNoDefault
+- InputBox
+- InputBoxSimple
+- Password1Box
+- Password2Box
+
+- PrintList
+- PrintMultilineText
+
+- Separator
+'''
+
 import numpy as np
 import getpass as gp
 from mod_color import c_p,c_n,c_red
@@ -21,18 +40,25 @@ def RadioList( title='', tag=[], desc=[], fkey=['q'],fdesc=['Quit'],
       return None
       
    # Title
-   if len(title)>0:  print('\n[ '+title.upper()+' ]')
+   if len(title)>0:  print('\n'+c_p+'[ '+title.upper()+' ]'+c_n)
    print('')
 
    # Show List
    def showlist(tag,desc):
+      try:
+         tagmaxlen= max([len(i) for i in tag])
+      except:
+         tagmaxlen= 0
       for i in range(len(desc)):
-         print('%5i  %s  %s'%(i,tag[i],desc[i]))
+         print('%5i  %s  %s'%(i,tag[i].center(tagmaxlen),desc[i]))
    showlist(tag,desc)
 
-   tagmaxlen   = max([len(i) for i in tag])
-   try:     emptytag = tagmaxlen*' '
-   except:  emptytag = ''
+   # Show Function Keys
+   try:
+      tagmaxlen= max([len(i) for i in tag])
+      emptytag = tagmaxlen*' '
+   except:
+      emptytag = ''
    for i in range(Nf):
       print((c_p+'%5s'+c_n+'  %s  %s')%(fkey[i],emptytag,fdesc[i]))
    print('')
@@ -143,8 +169,21 @@ def YesNo(question,prompt=''):
       if answer.lower() in {'no','n'}:    return False
 
 #################
+def YesNoDefault(question,prompt='',default=False):
+   "Y/N 是或非, 可指定默认"
+   if default: dftstr = ' (yes or no, ENTER=yes): '
+   else:       dftstr = ' (yes or no, ENTER=no): '
+
+   while True:
+      print(c_p+prompt+c_n,end='')
+      answer = input(question+dftstr)
+      if answer.lower() in {'yes','y'}:   return True
+      if answer.lower() in {'no','n'}:    return False
+      if answer=='': return default
+
+#################
 def InputBox(question,prompt='',hint=''):
-   "随意输入一个str"
+   "随意输入一个str with a question"
    "Potential improve: 是否加入换行选项？是否加入对str长度限制？"
    cp = c_p+prompt+c_n
    bp = ' '*len(prompt)
@@ -187,15 +226,23 @@ def Password2Box(question='Password: '):
          print('Two passwords you input are NOT identical, please try again...')
 
 #################
-def PrintList(li,index=[],prompt='',title=''):
+def PrintList(li,index=[],tag=[],prompt='',title=''):
    "打印一个列表（可指定index）"
    print(prompt+title)
    N = len(li)
+
+   if tag==[] and N>0:
+      tag = ['']*N
+   try:
+      tagmaxlen= max([len(i) for i in tag])
+   except:
+      tagmaxlen= 0
+
    if    index==[]:  # Numbered index
       Ndigit = len(str(N-1))
       indexfmt = '%'+str(Ndigit)+'i'
       for i in range(N):
-         print((prompt+indexfmt+'   %s')%(i,str(li[i])))
+         print((prompt+indexfmt+'  %s  %s')%(i,tag[i].center(tagmaxlen),str(li[i])))
    elif  len(li)==len(index):
       for i in range(N):
          print(prompt+str(index[i])+' = '+str(li[i]))

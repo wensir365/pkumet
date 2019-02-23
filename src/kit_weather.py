@@ -33,12 +33,12 @@ def go():
             print('')
 
             print('Weather    : ',condition.text)
-            print('Temp       : ',condition.temp)
-            print('Pressure   : ',atmosphere['pressure'])
-            print('Humidity   : ',atmosphere['humidity'])
-            print('Visibility : ',atmosphere['visibility'])
-            print('Wind SPD   : ',wind.speed)
-            print('Wind DIR   : ',wind.direction)
+            print('Temp       : ',condition.temp,           'Celsius')
+            print('Pressure   : ',atmosphere['pressure'],   '(Issue Here! psi/mb?)')
+            print('Humidity   : ',atmosphere['humidity'],   '%')
+            print('Visibility : ',atmosphere['visibility'], 'km')
+            print('Wind SPD   : ',wind.speed,               'km/h')
+            print('Wind DIR   : ',wind.direction,           'DegreesNorth')
             print('Sunrise    : ',astronomy['sunrise'])
             print('Sunset     : ',astronomy['sunset'])
 
@@ -51,7 +51,7 @@ def go():
                print(ruler%(i.date,i.day,i.high,i.low,i.text))
 
          except:
-            print('\nSorry, didn\'t find any info for %s from Yahoo Weather.'
+            print('\nSorry, cannot successfully retrieve data for %s from Yahoo Weather.'
                   %(c_red+query+c_n))
    return
 

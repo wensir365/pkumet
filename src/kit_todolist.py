@@ -1,157 +1,394 @@
 #!/usr/bin/env python3
 
+import copy
 import calendar
 import pickle
 import pandas     as pd
 import mod_pkucli as cli
 from   mod_color    import c_red,c_p,c_n
+from   mod_pkuclass import Note,SameNote
+
+prompt   = '    '
 
 def go():
    print('Starting ... Toolkit/To-Do-List')
 
-   TodoList_file  = '../cfg/todolist.pkl'
-   try:
-      TodoList = pickle.load(open(TodoList_file,'rb'))
-      #print(TodoList)
-      print('Loading ... old to-do-list data')
-   except:
-      TodoList = reset_todolist()
-      print('Generating ... new to-do-list data')
+   TodoList_path  = '../cfg/'
+   TodoList_file  = 'todolist.pkl'
 
+   # INIT
+   try:
+      TodoList = pickle.load(open(TodoList_path+TodoList_file,'rb'))
+      print('Loading ... todo-list data from '+TodoList_path+TodoList_file)
+   except:
+      TodoList = TODOLIST()
+      print('Generating ... a new todo-list')
+
+   TodoListBak = copy.deepcopy(TodoList)
+
+   # MainLoop
    while True:
-      TodoScr = todo_selector( header   = '>>> To-Do-List',
-                              itemlist = TodoList,
-                              fkeydict = {   'q' : 'Quit',
-                                             'a' : 'Add 1 item',
-                                             'r' : 'Reset all',
-                                             'd' : 'Delete 1 item',
-                                             's' : 'Show all'        },
-                              question = 'Which one you want to see the details?'   )
-      query = TodoScr.show_and_get()
+      TodoList.CheckAllExpire()  # Checking overdue records in each loop
+
+      query = cli.RadioList(  title = '>>> To-Do List',
+                              tag   = TodoList.listwDue(),
+                              desc  = TodoList.listwTitle(),
+                              fkey  = ['a','d','e','l','c','m','s','q'],
+                              fdesc = ['Add ......... 增加一条新日程',
+                                       'Delete ...... 完成日程后删除',
+                                       'Edit ........ 修改日程',
+                                       'List ........ 查看日程列表',
+                                       'Calendar .... 查看年历',
+                                       'Management .. 管理其它列表',
+                                       'Save ........ 保存',
+                                       'Quit ........ 退出'],
+                              question='Which one you want to see the details?'  )
 
       if    query=='q':    # Quit (save)
-         TodoScr.show()
-         if cli.YesNo('Save current To-do List?'):
-            for i in range(len(TodoList)):
-               if TodoList.at[i,'status']=='N':
-                  TodoList.at[i,'status'] = ''
-            pickle.dump(TodoList, open(TodoList_file,'wb'))
-            print('OK! Saved.')
-         print('')
+         if not(SameTodoList(TodoListBak,TodoList)):
+            if cli.YesNo('Save current To-do List?',prompt=prompt):
+               pickle.dump(TodoList, open(TodoList_path+TodoList_file,'wb'))
+               print(prompt+'OK! Saved.')
+            print()
          return
 
       elif  query=='a':    # Add 1 item
-         now = pd.to_datetime('now')
-
-         newjob   = cli.InputBox('Adding a new item to current list ...',
-                                       '    ','Step 1/4 - Job title: ' )
-         newdet   = cli.InputBoxSimple('    ','Step 2/4 - Job details: ' )
-         thismon  = calendar.month(now.year,now.month)
-         cli.PrintMultilineText(thismon,indent='    ',rindent=' ',highlight=' %2i '%now.day)
-         newend   = cli.InputBoxSimple('    ','Step 3/4 - Expired date/time: ' )
-         newema   = cli.InputBoxSimple('    ','Step 4/4 - E-mail: ' )
-
-         newitemlist = [newjob, newdet, 'N', now, pd.to_datetime(newend), newema]
-         newitemname = ['job',  'details', 'status', 'start', 'end', 'email']
-
-         newitem  = pd.DataFrame( [newitemlist], columns=newitemname )
-         TodoList.index = TodoList.index+1
-         TodoList = newitem.append(TodoList)
-
-         cli.PrintList( newitemlist, index=newitemname, prompt='    ',
-                        title='OK, I got the information from you for the new item:')
-
-      elif  query=='r':    # Reset All
-         if cli.YesNo('Are you sure you want to reset the list?'):
-            TodoList = reset_todolist()
+         # -1- title
+         print(prompt+'Adding a new item to current list ...')
+         newjob   = input(prompt+'Step 1/4 - Job title: ')
+         # -2- details
+         newdet   = input(prompt+'Step 2/4 - Job details: ')
+         if newdet=='EOF':
+            newdet=''
+            MultiLine=False
          else:
-            print('Canceled, I did nothing.')
+            MultiLine=True
+         while MultiLine:
+            line  = input(prompt+'                        ')
+            if line=='EOF':   break
+            newdet   = newdet + '\n' + line
+         # -3- due date/time
+         now      = pd.Timestamp('now')
+         thismon  = calendar.month(now.year,now.month)
+         cli.PrintMultilineText(thismon,indent=prompt,rindent=' ',highlight=' %2i '%now.day)
+         newend   = input(prompt+'Step 3/4 - Expired date/time: ')
+         if newend!='': newend=pd.Timestamp(newend)
+         # -4- email
+         newema   = input(prompt+'Step 4/4 - E-mail: ')
+         if newema=='': newema = 'me'
+         newema   = [ i.strip() for i in newema.split(',') ]
+
+         newitem  = Note()
+         newitem.Make(  Title=newjob, Text=newdet,
+                        DTdue=newend, Email=newema   )
+         print('\n'+prompt+'OK, I got all the information for the new item.')
+         PrintItem(newitem)
+         TodoList.Add(newitem)
 
       elif  query=='d':    # Delete 1 item
-         ans = cli.IntBox('Delete which one?',prompt='    ')
-         TodoList.at[ans,'status'] = 'D'
-         print('    OK, %s deleted.'%(c_red+str(ans)+' '+TodoList['job'][ans]+c_n))
+         ans = cli.IntRangeBox('Delete which one?',[0,TodoList.Nlistw()-1],prompt=prompt)
+         TodoList.Finish(TodoList.listw[ans])
 
-      elif  query=='s':    # Show all
-         print('Restart and show all ...')
+      elif  query=='e':    # Edit 1 item
+         ans = cli.IntRangeBox('Edit which one?',[0,TodoList.Nlistw()-1],prompt=prompt)
+         oldnote  = TodoList.listw[ans]
+         newnote  = oldnote
+         # -0- current one
+         print(prompt+'Current Item:')
+         PrintItem(oldnote)
+         print(prompt+'Please input new text, or just type [Enter] to keep the old information:')
+         # -1- title
+         newjob   = input(prompt+'Step 1/4 - Job title: ')
+         if newjob!='': newnote.Title = newjob
+         # -2- details
+         newdet   = input(prompt+'Step 2/4 - Job details: ')
+         if newdet=='EOF':
+            newdet=''
+            MultiLine=False
+         else:
+            MultiLine=True
+         while MultiLine:
+            line  = input(prompt+'                        ')
+            if line=='EOF':   break
+            newdet   = newdet + '\n' + line
+         if newdet!='': newnote.Text = newdet
+         # -3- due date/time
+         now      = pd.Timestamp('now')
+         thismon  = calendar.month(now.year,now.month)
+         cli.PrintMultilineText(thismon,indent=prompt,rindent=' ',highlight=' %2i '%now.day)
+         newend   = input(prompt+'Step 3/4 - Expired date/time: ')
+         if newend!='': newnote.DTdue = pd.Timestamp(newend)
+         # -4- email
+         newema   = input(prompt+'Step 4/4 - E-mail: ')
+         if newema!='': newnote.Email = [ i.strip() for i in newema.split(',') ]
+         # -5- update
+         TodoList.Edit(oldnote,newnote)
+
+      elif  query=='l':    # List all
+         print(prompt+'List all ...')
+      
+      elif  query=='m':    # Management
+         while True:
+            query2   = cli.RadioList(  title = '>>> To-Do List >>> Management',
+                                       fkey  = ['i','sw','sd','se','md','me','rw','rd','re','r','q'],
+                                       fdesc = ['Information of 3 lists (Working, Deleted, Expired)',
+                                                'Show Working list',
+                                                'Show Deleted list',
+                                                'Show Expired list',
+                                                'Move an item from Deleted list back to working list',
+                                                'Move an item from Expired list back to working list',
+                                                'Reset Working list',
+                                                'Reset Deleted list',
+                                                'Reset Expired list',
+                                                'Reset All',
+                                                'Quit'],
+                                       question='Which one you want to perform?'  )
+            if query2=='q':      # Quit
+               break
+
+            elif  query2=='i':   # Information
+               print(prompt+'Number of items in 3 lists:')
+               print(prompt+'----')
+               print(prompt+'Working List =', TodoList.Nlistw())
+               print(prompt+'Deleted List =', TodoList.Nlistf())
+               print(prompt+'Expired List =', TodoList.Nliste())
+
+            elif  query2=='sw':  # Show Working list
+               if TodoList.listwTitle()!=[]:
+                  cli.PrintList( TodoList.listwTitle(),tag=TodoList.listwDue(),
+                                 prompt=prompt,title='List of Working Jobs:'     )
+               else:
+                  print(prompt+'Empty! No Working records found!')
+
+            elif  query2=='sd':  # Show Deleted list
+               if TodoList.listfTitle()!=[]:
+                  cli.PrintList( TodoList.listfTitle(),tag=TodoList.listfDue(),
+                                 prompt=prompt,title='List of Deleted Jobs:'     )
+               else:
+                  print(prompt+'Empty! No DELETED records found!')
+
+            elif  query2=='se':  # Show Expired list
+               if TodoList.listeTitle()!=[]:
+                  cli.PrintList( TodoList.listeTitle(),tag=TodoList.listeDue(),
+                                 prompt=prompt,title='List of Expired Jobs:'     )
+               else:
+                  print(prompt+'Empty! No EXPIRED records found!')
             
+            elif  query2=='md':  # Move an item from Deleted to Working
+               if TodoList.listfTitle()!=[]:
+                  which = cli.RadioList(
+                     title = '>>> To-Do List >>> Management >>> Move an item from DELETED to WORKING',
+                     tag   = TodoList.listfDue(),
+                     desc  = TodoList.listfTitle(),
+                     question = 'Move which one back to WORKING list?')
+                  if which=='q': print(prompt+'Canceled.')
+                  else:          TodoList.ActiveFromFinish(which)
+               else:
+                  print(prompt+'Empty! No DELETED records found!')
+
+            elif  query2=='me':  # Move an item from Expired to Working
+               if TodoList.listeTitle()!=[]:
+                  which = cli.RadioList(
+                     title = '>>> To-Do List >>> Management >>> Move an item from EXPIRED to WORKING',
+                     tag   = TodoList.listeDue(),
+                     desc  = TodoList.listeTitle(),
+                     question = 'Move which one back to WORKING list?')
+                  if which=='q': print(prompt+'Canceled.')
+                  else:          TodoList.ActiveFromExpire(which)
+               else:
+                  print(prompt+'Empty! No EXPIRED records found!')
+
+            elif  query2=='rw':  # Reset Working list
+               if cli.YesNo(prompt+'Are you sure to reset WORKING LIST w/ %i records?'
+                              %TodoList.Nlistw()):
+                  TodoList.ResetW()
+               else:
+                  print(prompt+'Canceled, I did nothing.')
+
+            elif  query2=='rd':  # Reset Deleted list
+               if cli.YesNo(prompt+'Are you sure to reset DELETED LIST w/ %i records?'
+                              %TodoList.Nlistf()):
+                  TodoList.ResetF()
+               else:
+                  print(prompt+'Canceled, I did nothing.')
+
+            elif  query2=='re':  # Reset Expired list
+               if cli.YesNo(prompt+'Are you sure to reset EXPIRED LIST w/ %i records?'
+                              %TodoList.Nliste()):
+                  TodoList.ResetE()
+               else:
+                  print(prompt+'Canceled, I did nothing.')
+
+            elif  query2=='r':  # Reset All
+               if cli.YesNo(prompt+'Are you sure you want to reset ALL 3 LISTs?'):
+                  TodoList.ResetAll()
+               else:
+                  print(prompt+'Canceled, I did nothing.')
+
+      elif  query=='s':    # Save
+         if not(SameTodoList(TodoListBak,TodoList)):
+            pickle.dump(TodoList, open(TodoList_path+TodoList_file,'wb'))
+            print(prompt+'OK! Saved.')
+            TodoListBak = copy.deepcopy(TodoList)
+         else:
+            print(prompt+'No updates, NO NEED to save so far.')
+
+      elif  query=='c':    # Calendar
+         now      = pd.Timestamp('now')
+         thismon  = calendar.prcal(now.year)
+
       else:                # Show details
-         print('    ----')
-         print('    ITEM #%i'%query)
-         print('    ----')
-         print('    Job title   :', TodoList['job'][query])
-         print('    Job details :', TodoList['details'][query])
-         print('    Expired on  :', TodoList['end'][query])
-         print('    Created on  :', TodoList['start'][query])
-         print('    E-mail      :', TodoList['email'][query])
-         print('    ----')
+         print(prompt+'ITEM #%i'%query)
+         PrintItem(TodoList.listw[query])
+         if cli.YesNoDefault('E-mail this message to your mailbox?',prompt=prompt,default=False):
+            TodoList.listw[query].Send()
+         #tmp = input(prompt+'Press [Enter] to continue ...')
 
+def PrintItem(note):
+   prompt = '    '
+   print(prompt+'----')
+   print(prompt+'Job title   :', note.Title)
 
-class todo_selector():
+   lines = note.Text.splitlines()
+   print(prompt+'Job details :', lines[0])
+   for i in lines[1:]:  print('                 ', i)
 
-   def __init__(  self,itemlist,
-                  header='',
-                  fkeydict={'q':'Quit'},
-                  question='Which item you prefer?',
-                  hint='Please input a number or q (for quit)'):
-      self.header = header
-      self.item   = itemlist
-      self.fkey   = fkeydict
-      self.ques   = question
-      self.hint   = hint
-      self.N      = len(itemlist)
-      self.Nfkey  = len(fkeydict)
-      self.anslist_item = [ str(i) for i in range(self.N) ]
-      self.anslist_fkey = list(fkeydict.keys())
+   print(prompt+'Created on  :', note.DTcreat)
+   print(prompt+'Expired on  :', note.DTdue)
+   print(prompt+'E-mail      :', note.Email)
+   print(prompt+'----')
 
-   def show(self):
-      print('\n'+self.header+'\n')
-      for i in range(self.N):
-         tmp = self.item.loc[i]
-         print('%5i %1s %-11s %s'%(i, tmp.status, GetDateTime(tmp.end), tmp.job))
-      print('')
-
-   def show_and_get(self):
-      print('\n'+self.header+'\n')
-      for i in range(self.N):
-         tmp = self.item.loc[i]
-         if tmp.status=='D' or tmp.status=='E':
-            continue
-         else:
-            print('%5i %1s %-11s %s'%(i, tmp.status, GetDateTime(tmp.end), tmp.job))
-      for i in self.fkey:
-         print((c_p+'%5s'+c_n+' %1s %-11s %s')%(i,'','',self.fkey[i]))
-      print('')
-      print(c_p+'[Q] '+c_n+self.ques)
-      while True: 
-         answer = input(c_p+'[A] '+c_n)
-         if    answer in self.anslist_item:
-            return int(answer)
-         elif  answer in self.anslist_fkey:
-            return answer
-         elif  answer=='999':  self.show()
-         else:
-            if len(answer)>0:
-               print('Sorry, '+c_red+answer+c_n+' is an invalid input.')
-               print(c_p+'[H] '+c_n+self.hint)
-               print('')
-
-
-def reset_todolist():
-   TodoList = pd.DataFrame(columns=('job','details','status','start','end','mailto'))
-   TodoList = TodoList.append(
-               {  'job'       : 'Hello! A new to-do list is ready for YOU!',
-                  'details'   : 'You may Add/Delete/Edit/Reset the list anytime',
-                  'status'    : 'N',   # 'N'=New, 'D'=Deleted, 'E'=Expired, ''=Normal
-                  'start'     : pd.to_datetime('now'),
-                  'end'       : '',
-                  'mailto'    : '' }, ignore_index=True)
-   return TodoList
-
-
-def GetDateTime(x):  # x - pd.to_datetime的时间章类型
+def GetDateTime(x):  # x - pd.Timestamp的时间章类型
    try:
-      return x.strftime('[%h%d/%Hh]')
+      return x.strftime('%h%d/%a/%H:%M')
    except:
-      return '[unlimited]'
+      # Demo 'Jun02/Th/13:30'
+      return 'N/A'
 
+class TODOLIST:
+   prompt   = '    '
+   def __init__(self):
+      self.listw = []   # List of currently Working jobs
+      self.listf = []   # List of Finished jobs
+      self.liste = []   # List of Expired jobs
+
+   def listwTitle(self):
+      return [ i.Title for i in self.listw ]
+
+   def listfTitle(self):
+      return [ i.Title for i in self.listf ]
+
+   def listeTitle(self):
+      return [ i.Title for i in self.liste ]
+
+   def Nlistw(self):
+      return len(self.listw)
+
+   def Nlistf(self):
+      return len(self.listf)
+
+   def Nliste(self):
+      return len(self.liste)
+
+   def listwDue(self):
+      return [ GetDateTime(i.DTdue) for i in self.listw ]
+      
+   def listfDue(self):
+      return [ GetDateTime(i.DTdue) for i in self.listf ]
+      
+   def listeDue(self):
+      return [ GetDateTime(i.DTdue) for i in self.liste ]
+
+   def Data(self):
+      return ( self.listw,
+               self.listf,
+               self.liste  )
+
+   def DataCopy(self):
+      return ( copy.deepcopy(self.listw),
+               copy.deepcopy(self.listf),
+               copy.deepcopy(self.liste)  )
+
+   def ResetAll(self):
+      self.ResetW()
+      self.ResetF()
+      self.ResetE()
+      print(prompt+'All 3 lists reset!')
+
+   def ResetW(self):
+      self.listw.clear()
+      print(prompt+'List WORKING reset!')
+
+   def ResetF(self):
+      self.listf.clear()
+      print(prompt+'List DELETED reset!')
+
+   def ResetE(self):
+      self.liste.clear()
+      print(prompt+'List EXPIRED reset!')
+
+   def Add(self,newnote):
+      self.listw.append(newnote)
+
+   def Edit(self,note1,note2):
+      which = self.listw.index(note1)
+      self.listw[which] = note2
+      print(prompt+c_red+note2.Title+c_n,'was UPDATED.')
+      PrintItem(note2)
+
+   def Finish(self,anote):
+      self.listf.append(anote)
+      self.listw.remove(anote)
+      print(prompt+c_red+anote.Title+c_n,'was DELETED.')
+      PrintItem(anote)
+
+   def Expire(self,anote):
+      self.liste.append(anote)
+      self.listw.remove(anote)
+
+      print()
+      print(prompt+c_red+'WARNING!! OVERDUE JOB FOUND!!'+c_n)
+      print(prompt+c_red+anote.Title+c_n,'was EXPIRED, Due on',anote.DTdue)
+      PrintItem(anote)
+
+   def CheckAllExpire(self):
+      now   = pd.Timestamp('now')
+      overduelist = []
+      for tmp in self.listw:
+         if tmp.DTdue!='' and tmp.DTdue < now:  # an overdue note found!
+            overduelist.append(tmp)
+      for tmp in overduelist:
+         self.Expire(tmp)
+
+   def ActiveFromFinish(self,i):
+      tmp   = self.listf[i]
+      self.listf.remove(self.listf[i])
+
+      tmp.Renew()
+      tmp.RemoveDue()
+      print(prompt+c_red+tmp.Title+c_n,'was re-activated.')
+      self.Add(tmp)
+
+   def ActiveFromExpire(self,i):
+      tmp   = self.liste[i]
+      self.liste.remove(self.liste[i])
+
+      tmp.Renew()
+      tmp.RemoveDue()
+      print(prompt+c_red+tmp.Title+c_n,'was re-activated.')
+      self.Add(tmp)
+
+def SameTodoList(a,b):
+   same = True
+   if len(a.listw)!=len(b.listw):   same = False
+   if len(a.listf)!=len(b.listf):   same = False
+   if len(a.liste)!=len(b.liste):   same = False
+   if same:
+      for i in range(a.Nlistw()):
+         if not(SameNote(a.listw[i],b.listw[i])):  same = False
+      for i in range(a.Nlistf()):
+         if not(SameNote(a.listf[i],b.listf[i])):  same = False
+      for i in range(a.Nliste()):
+         if not(SameNote(a.liste[i],b.liste[i])):  same = False
+   return same
+   

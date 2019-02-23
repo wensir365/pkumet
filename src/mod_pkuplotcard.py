@@ -202,7 +202,7 @@ def DataViewer2(DataInfo, FileList):
    ID = DataInfo['Name']
    print('Starting ... Toolkit/'+ID)
 
-   print(My)
+   #print(Some important information from DataInfo)
 
    TitleList   = list( i['Title'] for i in FileList )
    while True:

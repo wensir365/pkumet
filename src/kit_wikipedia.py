@@ -20,7 +20,7 @@ def go():
             print('    '+'OK, searching '+c_p+query+c_n+' ...\n')
             result   = wiki.summary(query)
             print(result)
-            if cli.YesNo('\nText To Speech (TTS)?'):
+            if cli.YesNoDefault('\nText To Speech (TTS)?'):
                print('Press CTRL+C to stop ...')
                os.system('say "%s"'%result)
          except:
